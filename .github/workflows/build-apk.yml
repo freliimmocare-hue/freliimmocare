@@ -1,0 +1,64 @@
+name: FRELI Cockpit Android APK bauen
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-android-apk:
+    name: Android APK erstellen
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Projekt laden
+        uses: actions/checkout@v4
+
+      - name: Projekt-ZIP automatisch entpacken
+        run: |
+          for f in *.zip; do
+            unzip -o "$f" -x ".github/*"
+          done
+
+      - name: Node.js 22 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Java 21 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Pakete installieren
+        run: npm install
+
+      - name: Android-Projekt erzeugen
+        run: npx cap add android
+
+      - name: Android-Berechtigungen setzen
+        run: node scripts/configure-android.mjs
+
+      - name: App-Icon und Startbildschirm erzeugen
+        run: npx capacitor-assets generate --android
+
+      - name: Web-App synchronisieren
+        run: npx cap sync android
+
+      - name: APK bauen
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../FRELI-Cockpit-Tablet.apk
+
+      - name: Fertige APK bereitstellen
+        uses: actions/upload-artifact@v4
+        with:
+          name: FRELI-Cockpit-Tablet-APK
+          path: FRELI-Cockpit-Tablet.apk
+          retention-days: 30
+          
